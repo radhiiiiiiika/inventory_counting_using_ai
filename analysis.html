@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory Item Count Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background-color: #2c3e50;
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .logo {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .logo:hover {
+            color: #3498db;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: #ecf0f1;
+            text-decoration: none;
+            font-weight: 300;
+            transition: color 0.3s ease, transform 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: #3498db;
+            transform: scale(1.05);
+        }
+
+        .chart-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+
+        #itemChart {
+            max-width: 100%;
+            height: 500px;
+        }
+
+        #errorMessage {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 20px;
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index.html" class="logo">Inventory Dashboard</a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="#" onclick="return false;">Inventory Chart</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="chart-container">
+        <h1>Inventory Item Counts</h1>
+        <div id="errorMessage"></div>
+        <canvas id="itemChart"></canvas>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const supabaseUrl = 'https://eyiqgqzwxmrdgbvdzwgq.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5aXFncXp3eG1yZGdidmR6d2dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwMTkyNTUsImV4cCI6MjA1ODU5NTI1NX0.Ojbyi5CVRb8S_YnTJLWubWsV3NEz3S4_HIEIf0TExhU';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Function to display error message
+        function displayError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            console.error(message);
+        }
+
+        // Function to aggregate item counts
+        async function getAggregatedItemCounts() {
+            try {
+                // Fetch all items from the 'inventory' table
+                const { data, error } = await supabase
+                    .from('inventory')
+                    .select('item_name, stock_count');
+
+                if (error) {
+                    displayError(`Supabase Error: ${error.message}`);
+                    return null;
+                }
+
+                if (!data || data.length === 0) {
+                    displayError('No data found in the inventory table.');
+                    return null;
+                }
+
+                // Aggregate item counts
+                const aggregatedCounts = data.reduce((acc, item) => {
+                    if (acc[item.item_name]) {
+                        acc[item.item_name] += item.stock_count;
+                    } else {
+                        acc[item.item_name] = item.stock_count;
+                    }
+                    return acc;
+                }, {});
+
+                return aggregatedCounts;
+            } catch (err) {
+                displayError(`Unexpected error: ${err.message}`);
+                return null;
+            }
+        }
+
+        // Function to create chart
+        async function createItemCountChart() {
+            const aggregatedData = await getAggregatedItemCounts();
+            
+            if (!aggregatedData) {
+                return;
+            }
+
+            const ctx = document.getElementById('itemChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(aggregatedData),
+                    datasets: [{
+                        label: 'Total Item Count',
+                        data: Object.values(aggregatedData),
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(255, 206, 86, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 206, 86, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Stock Count',
+                                color: '#2c3e50'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Item Name',
+                                color: '#2c3e50'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Inventory Item Count Distribution',
+                            color: '#2c3e50',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize the chart when the page loads
+        document.addEventListener('DOMContentLoaded', createItemCountChart);
+    </script>
+</body>
+</html>
