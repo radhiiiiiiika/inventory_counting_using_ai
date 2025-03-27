@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Object Detection Advanced Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #f4f4f7;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        /* Navigation Styles */
+        .navbar {
+            background-color: #2c3e50;
+            padding: 1rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .logo {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: #ecf0f1;
+            text-decoration: none;
+            font-weight: 300;
+            transition: color 0.3s ease, transform 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: #3498db;
+            transform: scale(1.05);
+        }
+
+        /* Dashboard Container Styles */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .detection-section, .dashboard-section {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        /* Image Container Styles */
+        .image-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        #originalImage, #processedImage {
+            max-width: 48%;
+            max-height: 400px;
+            border-radius: 5px;
+            object-fit: contain;
+            border: 1px solid #e0e0e0;
+        }
+
+        /* Object Stats Styles */
+        .object-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+            flex-grow: 1;
+            margin: 0 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        #objectCountChart {
+            max-height: 300px;
+            margin-top: 20px;
+        }
+
+        /* Loading and Error Styles */
+        .loading, #errorMessage {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .loading {
+            background-color: #e9f5ff;
+            color: #2196F3;
+        }
+
+        #errorMessage {
+            background-color: #ffebee;
+            color: #f44336;
+        }
+
+        /* Dashboard Info Styles */
+        .dashboard-info {
+            background-color: #e9f5ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .dashboard-info ul {
+            list-style-type: none;
+            padding-left: 10px;
+        }
+
+        .dashboard-info li {
+            margin-bottom: 5px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="#" class="logo">Object Detection Dashboard</a>
+            <div class="nav-links">
+                <a href="http://127.0.0.1:5500/analysis.html">Inventory Data</a>
+                <!-- Add links to other pages as needed -->
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard Container -->
+    <div class="dashboard-container">
+        <div class="detection-section">
+            <h2>Object Detection</h2>
+            <input type="file" id="imageUpload" accept="image/*">
+            
+            <div class="image-container">
+                <img id="originalImage" src="" alt="Original Image" style="display:none;">
+                <img id="processedImage" src="" alt="Processed Image" style="display:none;">
+            </div>
+            
+            <button onclick="detectObjects()" style="display:none;" id="detectButton">Detect Objects</button>
+            
+            <div id="loadingMessage" class="loading" style="display:none;">Processing image...</div>
+            <div id="errorMessage" style="display: none;"></div>
+        </div>
+        
+        <div class="dashboard-section">
+            <h2>Detection Dashboard</h2>
+            
+            <div class="object-stats" id="objectStatsContainer">
+                <div class="stat-card">
+                    <h3>Total Objects</h3>
+                    <p id="totalObjectCount">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Unique Object Types</h3>
+                    <p id="uniqueObjectTypes">0</p>
+                </div>
+            </div>
+            
+            <canvas id="objectCountChart"></canvas>
+            
+            <div class="dashboard-info" id="detectionDetails">
+                <h3>Detection Insights</h3>
+                <p>Upload an image to begin analysis.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let objectCountChart = null;
+
+        axios.defaults.baseURL = 'http://localhost:5000';
+        
+        document.getElementById('imageUpload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const originalImage = document.getElementById('originalImage');
+                originalImage.src = e.target.result;
+                originalImage.style.display = 'block';
+
+                const detectButton = document.getElementById('detectButton');
+                detectButton.style.display = 'inline-block';
+            }
+
+            reader.readAsDataURL(file);
+        });
+
+        function updateDashboard(objectCounts) {
+            const totalObjectCount = document.getElementById('totalObjectCount');
+            const uniqueObjectTypes = document.getElementById('uniqueObjectTypes');
+            const detectionDetails = document.getElementById('detectionDetails');
+
+            // Calculate total objects
+            const totalObjects = Object.values(objectCounts).reduce((a, b) => a + b, 0);
+            totalObjectCount.textContent = totalObjects;
+            uniqueObjectTypes.textContent = Object.keys(objectCounts).length;
+
+            // Generate detection insights
+            let insightsHtml = '<h3>Detection Insights</h3>';
+            insightsHtml += '<ul>';
+            for (const [object, count] of Object.entries(objectCounts)) {
+                insightsHtml += `<li><strong>${object}</strong>: ${count} detected</li>`;
+            }
+            insightsHtml += '</ul>';
+            detectionDetails.innerHTML = insightsHtml;
+
+            // Update Chart
+            if (objectCountChart) {
+                objectCountChart.destroy();
+            }
+
+            const ctx = document.getElementById('objectCountChart').getContext('2d');
+            objectCountChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(objectCounts),
+                    datasets: [{
+                        label: 'Object Counts',
+                        data: Object.values(objectCounts),
+                        backgroundColor: 'rgba(33, 150, 243, 0.6)',
+                        borderColor: 'rgba(33, 150, 243, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Objects'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function detectObjects() {
+            const originalImage = document.getElementById('originalImage');
+            const processedImage = document.getElementById('processedImage');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const errorMessage = document.getElementById('errorMessage');
+            const base64Image = originalImage.src;
+
+            // Reset previous results
+            processedImage.style.display = 'none';
+            loadingMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+
+            const base64Data = base64Image.split(',')[1] || base64Image;
+
+            axios.post('/detect', { 
+                image: base64Data 
+            })
+            .then(response => {
+                loadingMessage.style.display = 'none';
+
+                // Display processed image
+                processedImage.src = `data:image/jpeg;base64,${response.data.processed_image}`;
+                processedImage.style.display = 'block';
+
+                // Update dashboard with object counts
+                updateDashboard(response.data.object_counts);
+            })
+            .catch(error => {
+                loadingMessage.style.display = 'none';
+                console.error('Full Error:', error);
+                
+                const errorMsg = error.response ? 
+                    (error.response.data.error || 'An unexpected error occurred') : 
+                    'Network error. Please check your connection.';
+                
+                errorMessage.textContent = `Error: ${errorMsg}`;
+                errorMessage.style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>
