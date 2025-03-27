@@ -11,7 +11,7 @@ This project is an AI-powered inventory counting system that utilizes object det
 
 ## Tech Stack
 - Backend: Flask, YOLOv8, OpenCV, NumPy
-- Frontend: HTML, CSS, JavaScript
+- Frontend: HTML, CSS, JavaScript, Axios
 - Database: Included (Virtually through PostgreSQL)
 ## Installation
 
